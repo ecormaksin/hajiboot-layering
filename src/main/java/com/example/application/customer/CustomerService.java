@@ -1,11 +1,11 @@
-package com.example.service;
+package com.example.application.customer;
 
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.example.domain.Customer;
-import com.example.repository.CustomerRepository;
+import com.example.domain.customer.Customer;
+import com.example.domain.customer.CustomerRepository;
 
 @Service
 public class CustomerService {
