@@ -2,11 +2,15 @@ package com.example.port.adapter.persistence;
 
 import java.util.List;
 
+import javax.annotation.PostConstruct;
+
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,8 +23,17 @@ public class JdbcTemplateCustomerRepository implements CustomerRepository {
 
     NamedParameterJdbcTemplate jdbcTemplate;
     
+    SimpleJdbcInsert insert;
+    
     JdbcTemplateCustomerRepository(NamedParameterJdbcTemplate aJdbcTemplate) {
         this.jdbcTemplate = aJdbcTemplate;
+    }
+    
+    @PostConstruct
+    public void init() {
+        this.insert = new SimpleJdbcInsert((JdbcTemplate) jdbcTemplate.getJdbcOperations())
+                .withTableName("customers")
+                .usingGeneratedKeyColumns("id");
     }
     
     private static final RowMapper<Customer> customerRowMapper = (rs, i) -> {
@@ -30,6 +43,7 @@ public class JdbcTemplateCustomerRepository implements CustomerRepository {
         return new Customer(id, firstName, lastName);
     };
     
+    @Override
     public List<Customer> findAll() {
         List<Customer> customers = jdbcTemplate.query(
                 "SELECT id, first_name, last_name FROM customers ORDER BY id", 
@@ -37,6 +51,7 @@ public class JdbcTemplateCustomerRepository implements CustomerRepository {
         return customers;
     }
     
+    @Override
     public Customer findOne(Integer id) {
         SqlParameterSource param = new MapSqlParameterSource().addValue("id", id);
         return jdbcTemplate.queryForObject(
@@ -45,11 +60,12 @@ public class JdbcTemplateCustomerRepository implements CustomerRepository {
                 customerRowMapper);
     }
     
+    @Override
     public Customer save(Customer customer) {
         SqlParameterSource param = new BeanPropertySqlParameterSource(customer);
         if (customer.getId() == null) {
-            jdbcTemplate.update("INSERT INTO customers(first_name, last_name) VALUES(:firstName, :lastName)", 
-                    param);
+            Number key = this.insert.executeAndReturnKey(param);
+            customer.setId(key.intValue());
         } else {
             jdbcTemplate.update("UPDATE customers SET first_name=:firstName, last_name=:lastName WHERE id=:id", 
                     param);
@@ -57,6 +73,7 @@ public class JdbcTemplateCustomerRepository implements CustomerRepository {
         return customer;
     }
     
+    @Override
     public void delete(Integer id) {
         SqlParameterSource param = new MapSqlParameterSource().addValue("id", id);
         jdbcTemplate.update("DELETE FROM customers WHERE id=:id", 
